@@ -1,10 +1,12 @@
-use crossterm::{cursor, style, terminal, ExecutableCommand, QueueableCommand};
+use graphics::Graphics;
 use rand::random;
-use std::io::{stdout, Read, Write};
+use std::io::{stdout, Read, Stdout};
 use std::{fs::File, path::Path};
 
 pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
+
+mod graphics;
 
 struct Chip {
     memory: [u8; 4096],
@@ -17,8 +19,9 @@ struct Chip {
     sp: u8,
     stack: [u16; 16],
     // 64 * 32 display
-    gfx: [[u8; 64]; 32],
-    // key status
+    // gfx: [[u8; 64]; 32],
+    gfx: Graphics<Stdout>,
+    // Key(0-F) pressed status
     key: [bool; 16],
     delay_timer: u8,
     sound_timer: u8,
@@ -50,6 +53,8 @@ impl Chip {
             memory[i] = fontset[i];
         }
 
+        let gfx = Graphics::new(stdout()).expect("Initialize graphics successfully");
+
         Chip {
             memory,
             v: [0; 16],
@@ -57,7 +62,7 @@ impl Chip {
             pc: 0x200,
             sp: 0,
             stack: [0; 16],
-            gfx: [[0; 64]; 32],
+            gfx,
             key: [false; 16],
             delay_timer: 0,
             sound_timer: 0,
@@ -70,28 +75,22 @@ impl Chip {
         Ok(())
     }
 
-    fn draw_gfx(&self) -> Result<()> {
-        let mut stdout = stdout();
-        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-
-        for y in 0..32 {
-            for x in 0..64 {
-                let pixel = if self.gfx[y][x] == 1 { '*' } else { ' ' };
-                stdout
-                    .queue(cursor::MoveTo(x as u16, y as u16))?
-                    .queue(style::Print(pixel))?;
-            }
-        }
-        stdout.queue(cursor::Hide)?.flush()?;
-        Ok(())
+    fn fetch_opcode(&mut self) -> u16 {
+        let hi_bits = self.memory[self.pc as usize];
+        let lo_bits = self.memory[self.pc as usize + 1];
+        self.pc += 2;
+        (hi_bits as u16) << 8 | lo_bits as u16
     }
 
     fn run(&mut self) -> Result<()> {
-        // Fetch opcode
-        let high = self.memory[self.pc as usize];
-        let low = self.memory[self.pc as usize + 1];
-        self.pc += 2;
-        let opcode = (high as u16) << 8 | low as u16;
+        loop {
+            self.exec_cycle()?;
+        }
+    }
+
+    // Emulate one cycle
+    fn exec_cycle(&mut self) -> Result<()> {
+        let opcode = self.fetch_opcode();
 
         // Decode and execute
         let x = ((opcode & 0x0F00) >> 8) as u8;
@@ -99,12 +98,11 @@ impl Chip {
         let n = (opcode & 0x000F) as u8;
         let nn = (opcode & 0x00FF) as u8; // low
         let nnn = opcode & 0x0FFF;
-        // println!(
-        //     "{:x}, x={}, y={}, n={:x}, nn={:x}, nnn={}",
-        //     opcode, x, y, n, nn, nnn
-        // );
+
         match opcode {
-            0x00E0 => self.gfx = [[0; 64]; 32],
+            0x00E0 => {
+                self.gfx.clear()?;
+            }
             0x00EE => {
                 self.pc = self.stack[self.sp as usize];
                 self.sp -= 1;
@@ -165,24 +163,20 @@ impl Chip {
                         self.v[x as usize] = result as u8;
                     }
                     5 => {
-                        self.v[0xF] = if self.v[x as usize] > self.v[y as usize] {
-                            1
-                        } else {
-                            0
-                        };
+                        let vx = self.v[x as usize];
+                        let vy = self.v[y as usize];
+                        self.v[0xF] = if vx > vy { 1 } else { 0 };
                         // Consider as borrow from VF
                         // let vx = 0x0100 | self.v[x as usize] as u16;
                         // let vy = self.v[y as usize] as u16;
                         // self.v[x as usize] = (vx - vy) as u8;
-                        self.v[x as usize] = self.v[x as usize].wrapping_sub(self.v[y as usize]);
+                        self.v[x as usize] = vx.wrapping_sub(vy);
                     }
                     7 => {
-                        self.v[0xF] = if self.v[x as usize] < self.v[y as usize] {
-                            1
-                        } else {
-                            0
-                        };
-                        self.v[x as usize] = self.v[y as usize].wrapping_sub(self.v[x as usize]);
+                        let vx = self.v[x as usize];
+                        let vy = self.v[y as usize];
+                        self.v[0xF] = if vx < vy { 1 } else { 0 };
+                        self.v[x as usize] = vy.wrapping_sub(vx);
                     }
                     6 => {
                         let vx = self.v[x as usize];
@@ -215,7 +209,6 @@ impl Chip {
                     // Read n bytes from memory(sprites = 8 * n pixel), starting at vi
                     let vi = self.vi as usize;
                     let sprites = &self.memory[vi..(vi + n as usize)];
-                    println!("{} {} {:x} {:x}", x, y, n, opcode);
                     let x = self.v[x as usize] % 64;
                     let y = self.v[y as usize] % 32;
 
@@ -233,10 +226,10 @@ impl Chip {
                                 break;
                             }
                             let sprite_bit = (byte >> (7 - c)) & 1;
-                            let screen_bit = self.gfx[y][x];
+                            let screen_bit = self.gfx.gfx[y][x];
                             let pixel = sprite_bit ^ screen_bit;
 
-                            self.gfx[y][x] = pixel;
+                            self.gfx.gfx[y][x] = pixel;
 
                             // Erased screen (on -> off)
                             if screen_bit == 1 && pixel == 0 {
@@ -246,7 +239,7 @@ impl Chip {
                             }
                         }
                     }
-                    self.draw_gfx()?;
+                    self.gfx.draw()?;
                 }
                 0xE000 if opcode & 0x00FF == 0x009E => {
                     let vx = self.v[x as usize] as usize;
@@ -325,7 +318,7 @@ impl Chip {
 fn main() -> Result<()> {
     let mut chip = Chip::new();
     chip.load("rom/IBM Logo.ch8")?;
-    loop {
-        chip.run()?;
-    }
+    chip.run()
+    // let _ = Graphics::new(std::io::stdout())?;
+    // Ok(())
 }
