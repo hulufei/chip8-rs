@@ -47,7 +47,7 @@ impl<W: Write> Graphics<W> {
                     .queue(style::Print(pixel))?;
             }
         }
-        self.out.queue(cursor::Hide)?.flush()?;
+        self.out.flush()?;
         Ok(())
     }
 }

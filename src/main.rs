@@ -1,4 +1,5 @@
 use graphics::Graphics;
+use keyboard::Keyboard;
 use rand::random;
 use std::io::{stdout, Read, Stdout};
 use std::{fs::File, path::Path};
@@ -7,6 +8,7 @@ pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
 
 mod graphics;
+mod keyboard;
 
 struct Chip {
     memory: [u8; 4096],
@@ -21,8 +23,7 @@ struct Chip {
     // 64 * 32 display
     // gfx: [[u8; 64]; 32],
     gfx: Graphics<Stdout>,
-    // Key(0-F) pressed status
-    key: [bool; 16],
+    keyboard: Keyboard,
     delay_timer: u8,
     sound_timer: u8,
 }
@@ -54,6 +55,7 @@ impl Chip {
         }
 
         let gfx = Graphics::new(stdout()).expect("Initialize graphics successfully");
+        let keyboard = Keyboard::new().expect("Initialize keyboard successfully");
 
         Chip {
             memory,
@@ -63,7 +65,7 @@ impl Chip {
             sp: 0,
             stack: [0; 16],
             gfx,
-            key: [false; 16],
+            keyboard,
             delay_timer: 0,
             sound_timer: 0,
         }
@@ -243,13 +245,13 @@ impl Chip {
                 }
                 0xE000 if opcode & 0x00FF == 0x009E => {
                     let vx = self.v[x as usize] as usize;
-                    if self.key[vx] {
+                    if self.keyboard.get(vx) {
                         self.pc += 2;
                     }
                 }
                 0xE000 if opcode & 0x00FF == 0x00A1 => {
                     let vx = self.v[x as usize] as usize;
-                    if !self.key[vx] {
+                    if !self.keyboard.get(vx) {
                         self.pc += 2;
                     }
                 }
@@ -259,8 +261,8 @@ impl Chip {
                     }
                     0x0A => {
                         //  All execution stops until a key is pressed, then the value of that key is stored in Vx.
-                        if let Some((k, _)) = self.key.iter().enumerate().find(|(_, &v)| v) {
-                            self.v[x as usize] = k as u8;
+                        if let Some(k) = self.keyboard.find_pressed_key() {
+                            self.v[x as usize] = k;
                         } else {
                             self.pc -= 2;
                         }
@@ -311,6 +313,8 @@ impl Chip {
             self.sound_timer -= 1;
         }
 
+        self.keyboard.poll();
+
         Ok(())
     }
 }
@@ -319,6 +323,4 @@ fn main() -> Result<()> {
     let mut chip = Chip::new();
     chip.load("rom/IBM Logo.ch8")?;
     chip.run()
-    // let _ = Graphics::new(std::io::stdout())?;
-    // Ok(())
 }
