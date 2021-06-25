@@ -54,4 +54,16 @@ impl Keyboard {
             }
         }
     }
+
+    pub fn block() {
+        loop {
+            if let Ok(Event::Key(KeyEvent {
+                code: KeyCode::Char('n'),
+                modifiers: _,
+            })) = read()
+            {
+                break;
+            }
+        }
+    }
 }

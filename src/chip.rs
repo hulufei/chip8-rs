@@ -15,16 +15,15 @@ pub struct Chip {
     // The stack pointer, used to point to the topmost level of the stack
     sp: u8,
     stack: [u16; 16],
-    // 64 * 32 display
-    // gfx: [[u8; 64]; 32],
     gfx: Graphics<Stdout>,
     keyboard: Keyboard,
     delay_timer: u8,
     sound_timer: u8,
+    debug: bool,
 }
 
 impl Chip {
-    pub fn new() -> Self {
+    pub fn new(debug: bool) -> Self {
         let fontset = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -49,10 +48,16 @@ impl Chip {
             memory[i] = fontset[i];
         }
 
-        let gfx = Graphics::new(stdout()).expect("Initialize graphics successfully");
+        let mut gfx = Graphics::new(stdout()).expect("Initialize graphics successfully");
         let keyboard = Keyboard::new().expect("Initialize keyboard successfully");
 
+        if debug {
+            gfx.draw_debugger()
+                .expect("Initialize debugger successfully");
+        }
+
         Chip {
+            debug,
             memory,
             v: [0; 16],
             vi: 0,
@@ -88,6 +93,10 @@ impl Chip {
     // Emulate one cycle
     fn exec_cycle(&mut self) -> Result<()> {
         let opcode = self.fetch_opcode();
+
+        if self.debug {
+            Keyboard::block();
+        }
 
         // Decode and execute
         let x = ((opcode & 0x0F00) >> 8) as u8;

@@ -1,5 +1,5 @@
 use crate::Result;
-use crossterm::{cursor, style, terminal, ExecutableCommand, QueueableCommand};
+use crossterm::{cursor, queue, style, terminal, ExecutableCommand, QueueableCommand};
 use std::io::Write;
 
 pub struct Graphics<W: Write> {
@@ -46,6 +46,17 @@ impl<W: Write> Graphics<W> {
                     .queue(style::Print(pixel))?;
             }
         }
+        self.out.flush()?;
+        Ok(())
+    }
+
+    pub fn draw_debugger(&mut self) -> Result<()> {
+        queue!(
+            self.out,
+            cursor::MoveTo(0, 35),
+            style::Print("Press n to run next instruction"),
+            cursor::MoveToNextLine(2)
+        )?;
         self.out.flush()?;
         Ok(())
     }
