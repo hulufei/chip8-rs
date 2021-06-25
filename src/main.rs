@@ -226,10 +226,10 @@ impl Chip {
                                 break;
                             }
                             let sprite_bit = (byte >> (7 - c)) & 1;
-                            let screen_bit = self.gfx.gfx[y][x];
+                            let screen_bit = self.gfx.pixels[y][x];
                             let pixel = sprite_bit ^ screen_bit;
 
-                            self.gfx.gfx[y][x] = pixel;
+                            self.gfx.pixels[y][x] = pixel;
 
                             // Erased screen (on -> off)
                             if screen_bit == 1 && pixel == 0 {
