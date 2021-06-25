@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 rand = "0.8"
 crossterm = "0.20"
+structopt = "0.3"
 
 [dev-dependencies]
 insta = "1.7.1"

@@ -1,7 +1,6 @@
-use std::io::Write;
-
 use crate::Result;
 use crossterm::{cursor, style, terminal, ExecutableCommand, QueueableCommand};
+use std::io::Write;
 
 pub struct Graphics<W: Write> {
     // 64 * 32 display
