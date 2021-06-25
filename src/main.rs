@@ -15,11 +15,13 @@ struct Opt {
     /// Input file
     #[structopt(parse(from_os_str))]
     rom: PathBuf,
+    #[structopt(short)]
+    debug: bool,
 }
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
-    let mut chip = Chip::new();
+    let mut chip = Chip::new(opt.debug);
     chip.load(opt.rom)?;
     chip.run()
 }
