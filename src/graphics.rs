@@ -10,8 +10,8 @@ use std::io::Write;
 pub struct Graphics<W: Write> {
     // 64 * 32 display
     pub pixels: [[u8; 64]; 32],
-    debugger: Debugger,
     out: W,
+    debugger_layout: DebuggerLayout,
 }
 
 impl<W: Write> Graphics<W> {
@@ -32,7 +32,7 @@ impl<W: Write> Graphics<W> {
 
         Ok(Self {
             pixels: [[0; 64]; 32],
-            debugger: Debugger::new((0, 35)),
+            debugger_layout: DebuggerLayout::new((0, 35)),
             out,
         })
     }
@@ -62,7 +62,7 @@ impl<W: Write> Graphics<W> {
 
     pub fn log_op(&mut self, op: &str) -> std::io::Result<()> {
         self.out
-            .queue(Self::cursor_move_to(self.debugger.op))?
+            .queue(Self::cursor_move_to(self.debugger_layout.op))?
             .queue(terminal::Clear(ClearType::UntilNewLine))?
             .queue(style::Print(op))?
             .flush()
@@ -71,20 +71,20 @@ impl<W: Write> Graphics<W> {
     pub fn log_values(&mut self, registers: [u8; 16], pc: u16, vi: u16) -> std::io::Result<()> {
         for (i, v) in registers.iter().enumerate() {
             self.out
-                .queue(Self::cursor_move_to(self.debugger.registers[i]))?
+                .queue(Self::cursor_move_to(self.debugger_layout.registers[i]))?
                 .queue(style::Print(format!("V{:<2}: {:#04X}", i, v)))?;
         }
         self.out
-            .queue(Self::cursor_move_to(self.debugger.pc))?
+            .queue(Self::cursor_move_to(self.debugger_layout.pc))?
             .queue(style::Print(format!("PC: {:#06X}", pc)))?
-            .queue(Self::cursor_move_to(self.debugger.vi))?
+            .queue(Self::cursor_move_to(self.debugger_layout.vi))?
             .queue(style::Print(format!(" I: {:#06X}", vi)))?
             .flush()
     }
 
     pub fn draw_debugger(&mut self) -> std::io::Result<()> {
         self.out
-            .queue(Self::cursor_move_to(self.debugger.start))?
+            .queue(Self::cursor_move_to(self.debugger_layout.start))?
             .queue(terminal::Clear(ClearType::FromCursorDown))?
             .queue(style::Print("Press n to run next instruction"))?
             .flush()
@@ -93,7 +93,7 @@ impl<W: Write> Graphics<W> {
 
 type CursorPos = (u16, u16);
 
-struct Debugger {
+struct DebuggerLayout {
     start: CursorPos,
     registers: [CursorPos; 16],
     pc: CursorPos,
@@ -101,7 +101,7 @@ struct Debugger {
     op: CursorPos,
 }
 
-impl Debugger {
+impl DebuggerLayout {
     fn new(start: CursorPos) -> Self {
         let (start_x, start_y) = start;
         let op = (start_x, start_y + 2);
