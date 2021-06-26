@@ -94,16 +94,18 @@ impl Chip {
     fn exec_cycle(&mut self) -> Result<()> {
         let opcode = self.fetch_opcode();
 
-        if self.debug {
-            Keyboard::block();
-        }
-
         // Decode and execute
         let x = ((opcode & 0x0F00) >> 8) as u8;
         let y = ((opcode & 0x00F0) >> 4) as u8;
         let n = (opcode & 0x000F) as u8;
         let nn = (opcode & 0x00FF) as u8; // low
         let nnn = opcode & 0x0FFF;
+
+        if self.debug {
+            self.gfx.log_op(&format!("OP: {:#06X}", opcode))?;
+            self.gfx.log_values(self.v, self.pc, self.vi)?;
+            Keyboard::block_until_press_next();
+        }
 
         match opcode {
             0x00E0 => {

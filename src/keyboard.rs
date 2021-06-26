@@ -55,14 +55,21 @@ impl Keyboard {
         }
     }
 
-    pub fn block() {
+    pub fn block_until_press_next() {
         loop {
             if let Ok(Event::Key(KeyEvent {
-                code: KeyCode::Char('n'),
+                code: KeyCode::Char(c),
                 modifiers: _,
             })) = read()
             {
-                break;
+                match c {
+                    'n' => break,
+                    'q' => {
+                        terminal::disable_raw_mode().expect("Exit raw mode");
+                        std::process::exit(0)
+                    }
+                    _ => (),
+                }
             }
         }
     }
