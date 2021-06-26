@@ -40,10 +40,7 @@ impl Keyboard {
             })) = read()
             {
                 match c {
-                    'q' => {
-                        terminal::disable_raw_mode().expect("Exit raw mode");
-                        std::process::exit(0)
-                    }
+                    'q' => quit(),
                     '0'..='9' | 'a'..='f' | 'A'..='F' => {
                         let i = c.to_digit(16).unwrap();
                         self.key.fill(false);
@@ -64,13 +61,15 @@ impl Keyboard {
             {
                 match c {
                     'n' => break,
-                    'q' => {
-                        terminal::disable_raw_mode().expect("Exit raw mode");
-                        std::process::exit(0)
-                    }
+                    'q' => quit(),
                     _ => (),
                 }
             }
         }
     }
+}
+
+fn quit() {
+    terminal::disable_raw_mode().expect("Exit raw mode");
+    std::process::exit(0)
 }

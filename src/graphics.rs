@@ -72,13 +72,13 @@ impl<W: Write> Graphics<W> {
         for (i, v) in registers.iter().enumerate() {
             self.out
                 .queue(Self::cursor_move_to(self.debugger.registers[i]))?
-                .queue(style::Print(format!("V{}: {:#04X}", i, v)))?;
+                .queue(style::Print(format!("V{:<2}: {:#04X}", i, v)))?;
         }
         self.out
             .queue(Self::cursor_move_to(self.debugger.pc))?
             .queue(style::Print(format!("PC: {:#06X}", pc)))?
             .queue(Self::cursor_move_to(self.debugger.vi))?
-            .queue(style::Print(format!("I: {:#06X}", vi)))?
+            .queue(style::Print(format!(" I: {:#06X}", vi)))?
             .flush()
     }
 
