@@ -1,6 +1,26 @@
 # A chip-8 emulator
 
-## Screenshot
+## Usage
+
+```
+A chip-8 emulator
+
+USAGE:
+    chip8-rs [FLAGS] [OPTIONS] <rom>
+
+FLAGS:
+    -d               Start with debug mode
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -f, --fps <fps>    Specify FPS [default: 700]
+
+ARGS:
+    <rom>    Input file
+```
+
+## Example screenshot
 
 ```
 ⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨⥨
