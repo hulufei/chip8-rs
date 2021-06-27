@@ -3,6 +3,7 @@ use crate::keyboard::Keyboard;
 use crate::Result;
 use rand::random;
 use std::io::{stdout, Read, Stdout};
+use std::time::Instant;
 use std::{fs::File, path::Path};
 
 pub struct Chip {
@@ -20,10 +21,11 @@ pub struct Chip {
     delay_timer: u8,
     sound_timer: u8,
     debug: bool,
+    fps: u32,
 }
 
 impl Chip {
-    pub fn new(debug: bool) -> Self {
+    pub fn new(fps: u32, debug: bool) -> Self {
         let fontset = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -68,6 +70,7 @@ impl Chip {
             keyboard,
             delay_timer: 0,
             sound_timer: 0,
+            fps,
         }
     }
 
@@ -85,18 +88,31 @@ impl Chip {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        loop {
-            if self.debug {
-                self.gfx.log_op("NEXT OP: Press n to fetch")?;
-                // Log previous result, press next to fetch next opcode
-                self.gfx.log_values(self.v, self.pc, self.vi)?;
-                Keyboard::block_until_press_next();
-            }
-            // Fetch opcode and execute
-            self.exec_cycle()?;
-            if self.debug {
-                // Log next opcode, press next to log result
-                Keyboard::block_until_press_next();
+        'frame: loop {
+            let start = Instant::now();
+            let mut op_count = 0;
+            loop {
+                let time_frame = Instant::now().duration_since(start).as_millis();
+
+                if op_count == self.fps && time_frame >= 1000 {
+                    continue 'frame;
+                }
+
+                if op_count < self.fps {
+                    if self.debug {
+                        self.gfx.log_op("NEXT OP: Press n to fetch")?;
+                        // Log previous result, press next to fetch next opcode
+                        self.gfx.log_values(self.v, self.pc, self.vi)?;
+                        Keyboard::block_until_press_next();
+                    }
+                    // Fetch opcode and execute
+                    self.exec_cycle()?;
+                    if self.debug {
+                        // Log next opcode, press next to log result
+                        Keyboard::block_until_press_next();
+                    }
+                    op_count += 1;
+                }
             }
         }
     }
